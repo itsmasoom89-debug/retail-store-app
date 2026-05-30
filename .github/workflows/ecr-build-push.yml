@@ -1,0 +1,48 @@
+name: Build and Push to ECR
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - name: ui
+            path: src/ui
+            repo: retail-ui
+          - name: catalog
+            path: src/catalog
+            repo: retail-catalog
+          - name: cart
+            path: src/cart
+            repo: retail-cart
+          - name: orders
+            path: src/orders
+            repo: retail-orders
+          - name: checkout
+            path: src/checkout
+            repo: retail-checkout
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+
+      - name: Build and push
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repo }}:${{ github.sha }} ${{ matrix.path }}
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ matrix.repo }}:${{ github.sha }}
